@@ -1,12 +1,12 @@
-# LinkedIn Network Evaluation Tool
+# Intero Insight Network Analysis (Lite)
 
 This repository contains a simple Python application for analyzing your exported LinkedIn connections. Upload the `Connections.csv` file generated from LinkedIn to get insights about companies, job titles, and seniority levels within your network.
 
 ## Features
 
-- **KPI tiles** – total connections, recent adds, email coverage and monthly cadence.
+- **KPI tiles** – total connections, recent adds, year-to-date adds, monthly cadence, and longest streak.
 - **Connections heatmap** – year/month grid showing networking streaks.
-- **Company vs Position matrix** – where you hold relationships across seniority levels.
+- **Seniority distribution by company** – stacked view of your top 25 companies.
 - **Seniority breakdown** – executives, directors, managers, ICs.
 - **Connection anniversaries** – people you connected with on this day in previous years.
 - **Latest connections list** – quick follow-up view.

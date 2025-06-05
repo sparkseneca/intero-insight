@@ -1,8 +1,9 @@
-"""Streamlit application for LinkedIn Network Evaluation."""
+"""Streamlit application for Intero Insight Network Analysis (Lite)."""
 
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import matplotlib.pyplot as plt
 
 from .data_loader import load_connections
 from .analysis import (
@@ -12,17 +13,16 @@ from .analysis import (
     seniority_distribution,
     kpi_metrics,
     connections_heatmap,
-    company_position_matrix,
+    seniority_by_company_pivot,
     connection_anniversary,
     latest_connections,
-    longest_connection_streak,
 )
 
 
 def main() -> None:
     """Run the Streamlit web application."""
-    st.set_page_config(page_title="LinkedIn Network Evaluation", layout="wide")
-    st.title("LinkedIn Network Evaluation Tool")
+    st.set_page_config(page_title="Intero Insight Network Analysis (Lite)", layout="wide")
+    st.title("Intero Insight Network Analysis (Lite)")
 
     uploaded_file = st.file_uploader("Upload your LinkedIn Connections.csv", type="csv")
 
@@ -34,11 +34,12 @@ def main() -> None:
         else:
             df = add_seniority_column(df)
             metrics = kpi_metrics(df)
-            col1, col2, col3, col4 = st.columns(4)
+            col1, col2, col3, col4, col5 = st.columns(5)
             col1.metric("Total Connections", int(metrics["total"]))
             col2.metric("Added Last 30 Days", int(metrics["added_30"]))
-            col3.metric("% with Email", f"{metrics['with_email']:.0f}%")
+            col3.metric("Added This Year", int(metrics["added_year"]))
             col4.metric("Median Connections/Month", f"{metrics['median_per_month']:.1f}")
+            col5.metric("Longest Streak", f"{metrics['longest_streak']} days")
 
             left, right = st.columns(2)
 
@@ -48,10 +49,22 @@ def main() -> None:
                 if not heatmap.empty:
                     st.plotly_chart(px.imshow(heatmap, text_auto=True), use_container_width=True)
 
-                st.subheader("Company vs Position")
-                matrix = company_position_matrix(df)
-                if not matrix.empty:
-                    st.plotly_chart(px.imshow(matrix, text_auto=True), use_container_width=True)
+                st.subheader("Seniority Distribution by Company")
+                pivot = seniority_by_company_pivot(df)
+                if not pivot.empty:
+                    fig, ax = plt.subplots(figsize=(10, 12))
+                    cumulative = None
+                    for tier in pivot.columns:
+                        if cumulative is None:
+                            ax.barh(pivot.index, pivot[tier], label=tier)
+                            cumulative = pivot[tier].copy()
+                        else:
+                            ax.barh(pivot.index, pivot[tier], left=cumulative, label=tier)
+                            cumulative += pivot[tier]
+                    ax.set_xlabel("Connections")
+                    ax.set_title("Seniority distribution across your 25 most-connected companies")
+                    ax.legend(title="Seniority", bbox_to_anchor=(1.02, 1), loc="upper left")
+                    st.pyplot(fig)
 
                 st.subheader("Connection Anniversary")
                 anniv = connection_anniversary(df)
@@ -61,8 +74,6 @@ def main() -> None:
                 st.subheader("Latest 25 Connections")
                 st.dataframe(latest_connections(df))
 
-                st.subheader("Longest Connection Streak")
-                st.write(f"{longest_connection_streak(df)} days")
 
             with right:
                 st.subheader("Top Companies")
@@ -78,7 +89,7 @@ def main() -> None:
                 st.plotly_chart(px.bar(seniority_dist), use_container_width=True)
 
             st.download_button(
-                "Email me this PDF",
+                "Email me a deeper dive?",
                 data="PDF export is not implemented in this demo.",
                 file_name="report.txt",
             )

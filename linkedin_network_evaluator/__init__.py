@@ -1,1 +1,1 @@
-"""LinkedIn network evaluator package."""
+"""Intero Insight network analysis package."""

@@ -18,19 +18,19 @@ SIMPLE_BUCKETS = [
     ("VP", ["vp", "vice president"]),
     ("Director", ["director"]),
     ("Manager", ["manager"]),
-    ("Individual / Other", []),
+    ("Other", []),
 ]
 
 def bucket_position(title: str) -> str:
     """Return a simplified seniority bucket for the given title."""
     if not isinstance(title, str):
-        return "Individual / Other"
+        return "Other"
     t = title.lower()
     for label, keywords in SIMPLE_BUCKETS:
         for kw in keywords:
             if kw in t:
                 return label
-    return "Individual / Other"
+    return "Other"
 
 def classify_seniority(title: str) -> str:
     """Return the seniority level for a given job title."""
@@ -65,19 +65,24 @@ def kpi_metrics(df: pd.DataFrame) -> dict:
     metrics = {
         "total": len(df),
         "added_30": 0,
-        "with_email": 0.0,
+        "added_year": 0,
         "median_per_month": 0.0,
+        "longest_streak": 0,
     }
     if "Connected On" in df.columns:
         recent = df[df["Connected On"] >= (pd.Timestamp.today() - pd.Timedelta(days=30))]
         metrics["added_30"] = len(recent)
+
+        start_year = pd.Timestamp(pd.Timestamp.today().year, 1, 1)
+        metrics["added_year"] = int((df["Connected On"] >= start_year).sum())
+
         by_month = df.dropna(subset=["Connected On"]).copy()
         if not by_month.empty:
             by_month = by_month.groupby(by_month["Connected On"].dt.to_period("M")).size()
             metrics["median_per_month"] = float(by_month.median())
-    if "Email Address" in df.columns:
-        non_empty = df["Email Address"].astype(str).str.strip().ne("")
-        metrics["with_email"] = float(non_empty.mean() * 100)
+
+        metrics["longest_streak"] = longest_connection_streak(df)
+
     return metrics
 
 def connections_heatmap(df: pd.DataFrame) -> pd.DataFrame:
@@ -92,6 +97,21 @@ def company_position_matrix(df: pd.DataFrame) -> pd.DataFrame:
     if "Position_category" not in df.columns:
         df = df.assign(Position_category=df["Position"].fillna("").apply(bucket_position))
     return pd.crosstab(df["Company"], df["Position_category"])
+
+
+def seniority_by_company_pivot(df: pd.DataFrame, top_n: int = 25) -> pd.DataFrame:
+    """Return pivot table with seniority buckets for top companies."""
+    top = df["Company"].value_counts().head(top_n).index
+    subset = df[df["Company"].isin(top)].copy()
+    subset["Seniority_bucket"] = subset["Position"].apply(bucket_position)
+    pivot = subset.groupby(["Company", "Seniority_bucket"]).size().unstack(fill_value=0)
+    categories = ["Executive", "VP", "Director", "Manager", "Other"]
+    for cat in categories:
+        if cat not in pivot.columns:
+            pivot[cat] = 0
+    pivot = pivot[categories]
+    pivot = pivot.assign(Total=pivot.sum(axis=1)).sort_values("Total").drop(columns="Total")
+    return pivot
 
 def connection_anniversary(df: pd.DataFrame) -> pd.DataFrame:
     today = pd.Timestamp.today()
